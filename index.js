@@ -1,7 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
-// Logika cerdas: Deteksi apakah sedang di Termux atau di Cloud
 const chromePath = process.env.PREFIX 
     ? process.env.PREFIX + '/bin/chromium-browser' 
     : '/usr/bin/google-chrome';
@@ -14,20 +13,38 @@ const client = new Client({
     }
 });
 
+let qrStartTime;
+let timerInterval;
+
 client.on('qr', (qr) => {
-    console.clear();
-    console.log('--- SCAN QR KAYAME FOOD ---');
-    qrcode.generate(qr, {small: true});
+    qrStartTime = new Date(); // Catat waktu QR dibuat
+    if (timerInterval) clearInterval(timerInterval);
+
+    timerInterval = setInterval(() => {
+        const now = new Date();
+        const diff = Math.floor((now - qrStartTime) / 1000); // Hitung selisih detik
+        const minutes = Math.floor(diff / 60);
+        const seconds = diff % 60;
+
+        console.clear();
+        console.log('=============================================');
+        console.log('       🚀 QR CODE KAYAME FOOD ACTIVE        ');
+        console.log(`       Dibuat pada: ${qrStartTime.toLocaleTimeString()}`);
+        console.log('=============================================');
+        
+        qrcode.generate(qr, {small: true});
+        
+        console.log('---------------------------------------------');
+        console.log(`⏳ Durasi QR Aktif: ${minutes} Menit ${seconds} Detik`);
+        console.log('---------------------------------------------');
+        console.log('Tips: QR biasanya expired dalam 1-2 menit.');
+    }, 1000); // Update setiap 1 detik
 });
 
 client.on('ready', () => {
-    console.log('✅ Bot Kayame Food sudah Online!');
-});
-
-client.on('message', msg => {
-    if (msg.body.toLowerCase() === 'ping') {
-        msg.reply('pong! Bot aktif.');
-    }
+    if (timerInterval) clearInterval(timerInterval);
+    console.clear();
+    console.log('✅ BERHASIL! Bot Kayame Food sudah Online!');
 });
 
 client.initialize();
