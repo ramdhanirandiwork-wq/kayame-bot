@@ -1,5 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const axios = require('axios'); // Untuk cek IP & Lokasi
 
 const chromePath = process.env.PREFIX 
     ? process.env.PREFIX + '/bin/chromium-browser' 
@@ -13,50 +14,71 @@ const client = new Client({
     }
 });
 
+const OWNER_NUMBER = '6283109862325@c.us'; // Nomor Anda
+
+// --- [FUNGSI MONITORING] ---
+async function sendSystemOnNotification() {
+    try {
+        // Ambil data IP dan Lokasi
+        const response = await axios.get('https://ipapi.co/json/');
+        const { ip, city, region, country_name } = response.data;
+        
+        const waktu = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+        
+        const pesan = `
+🖥️ 🟢 SYSTEM ON 🟢 🖥️
+---------------------------------------------
+🌐 IP Server: ${ip}
+📍 Lokasi: ${city}, ${region} - ${country_name}
+📅 Waktu: ${waktu}
+---------------------------------------------
+🚀 Bot Kayame Food Siap Beroperasi!
+        `.trim();
+
+        await client.sendMessage(OWNER_NUMBER, pesan);
+        console.log('✅ Laporan System ON telah dikirim ke Owner.');
+    } catch (error) {
+        console.error('❌ Gagal mengirim laporan system on:', error);
+    }
+}
+
+// --- [LOGIKA QR & TIMER] ---
 let qrStartTime;
 let timerInterval;
 
-// --- [BAGIAN 1: LOGIKA QR & TIMER] ---
 client.on('qr', (qr) => {
     qrStartTime = new Date();
     if (timerInterval) clearInterval(timerInterval);
-
     timerInterval = setInterval(() => {
         const now = new Date();
         const diff = Math.floor((now - qrStartTime) / 1000);
-        const minutes = Math.floor(diff / 60);
-        const seconds = diff % 60;
-
         console.clear();
-        console.log('=============================================');
-        console.log('       🚀 QR CODE KAYAME FOOD ACTIVE        ');
-        console.log(`       Dibuat pada: ${qrStartTime.toLocaleTimeString()}`);
-        console.log('=============================================');
+        console.log('🚀 QR CODE ACTIVE - SILAKAN SCAN');
         qrcode.generate(qr, {small: true});
-        console.log('---------------------------------------------');
-        console.log(`⏳ Durasi QR Aktif: ${minutes} Menit ${seconds} Detik`);
-        console.log('---------------------------------------------');
+        console.log(`⏳ Durasi: ${Math.floor(diff/60)}m ${diff%60}s`);
     }, 1000);
 });
 
-// --- [BAGIAN 2: STATUS READY] ---
+// --- [STATUS READY] ---
 client.on('ready', () => {
     if (timerInterval) clearInterval(timerInterval);
     console.clear();
-    console.log('✅ BERHASIL! Bot Kayame Food sudah Online!');
+    console.log('✅ BERHASIL! Bot Kayame Food Online!');
+    
+    // Kirim notifikasi otomatis ke nomor Anda
+    sendSystemOnNotification();
 });
 
-// --- [BAGIAN 3: RESPON PESAN (WAJIB ADA)] ---
+// --- [RESPON PESAN] ---
 client.on('message', msg => {
     if (msg.body.toLowerCase() === 'ping') {
-        msg.reply('pong! Bot Kayame Food aktif dan siap melayani.');
+        msg.reply('pong! Bot aktif.');
     }
 });
 
-// --- [BAGIAN 4: INITIALIZE & KEEP-ALIVE] ---
 client.initialize();
 
+// Heartbeat
 setInterval(() => {
-    // Ini agar Termux tidak dianggap menganggur oleh Android
-    console.log(`💓 [${new Date().toLocaleTimeString()}] Bot sedang bernafas...`);
+    console.log(`💓 [${new Date().toLocaleTimeString()}] Heartbeat: Active`);
 }, 60000);
